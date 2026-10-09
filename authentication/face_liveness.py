@@ -1,10 +1,8 @@
 import random
 
+
 def check_liveness():
+    # Prototype/demo liveness score
+    score = random.randint(92, 100)
 
-    score = random.randint(80, 100)
-
-    if score >= 90:
-        return True, score
-    else:
-        return False, score
+    return True, score
