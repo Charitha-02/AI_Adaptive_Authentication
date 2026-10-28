@@ -1,5 +1,5 @@
 
-# Python virtual environments
+# Python environments
 .venv/
 .venv312/
 venv/
@@ -8,14 +8,16 @@ venv/
 __pycache__/
 *.py[cod]
 
-# Environment variables and secrets
+# Secrets and local configuration
 .env
 .env.*
 
-# Local databases and sensitive user data
+# Databases
 *.db
 *.sqlite
 *.sqlite3
 
-# IDE files
-.vscode/
+# Personal authentication data
+storage/face_data/
+storage/typing_profiles/
+storage/authentication_logs/
