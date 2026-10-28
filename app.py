@@ -31,9 +31,6 @@ from datetime import datetime
 
 
 from authentication.face_liveness import check_liveness
-
-
-
 from authentication.keystroke_auth import verify_typing
 
 
@@ -1753,14 +1750,53 @@ elif page == "Login":
             else:
                 st.info("📷 Opening camera for face verification...")
 
-                result = run_face_check(email.strip())
+                # Step 1: verify the registered face. This subprocess uses
+                # the existing login.py implementation and does not change
+                # or reset the user's registered face data.
+                try:
+                    result = run_face_check(email.strip())
+                except Exception as exc:
+                    st.error(f"❌ Could not run face recognition: {exc}")
+                    result = None
 
-                if face_check_success(result):
-                    live, score = check_liveness()
+                if result is not None and face_check_success(result):
+                    st.success("✅ Face identity matched. Starting liveness verification...")
+
+                    # Step 2: run liveness once, and display the returned result
+                    # in Streamlit so the user can see where login is failing.
+                    try:
+                        # Diagnostic: call the function through its module so we
+                        # can confirm which file Streamlit is actually using.
+                        import authentication.face_liveness as liveness_module
+
+                        st.caption(
+                            f"Liveness module file: {liveness_module.__file__}"
+                        )
+
+                        # login.py opens and closes the same physical webcam.
+                        # Give Windows/OpenCV a moment to release the device before
+                        # opening it again for the anti-spoofing check.
+                        time.sleep(1.5)
+                        st.write("DEBUG: Starting liveness check from Streamlit")
+                        live, score = liveness_module.check_liveness()
+                        st.write("DEBUG: Liveness function finished")
+                        st.write("DEBUG — Liveness returned:", repr((live, score)))
+                        st.write("DEBUG — Liveness passed:", bool(live))
+                        st.code("LIVENESS RESULT: " + repr((live, score)))
+
+                        st.write("Raw liveness result:", repr((live, score)))
+                        st.caption(
+                            f"Liveness diagnostic — passed: {bool(live)}, score: {score}%"
+                        )
+                    except Exception as exc:
+                        live, score = False, 0
+                        st.error(f"Liveness verification raised an error: {exc}")
 
                     if not live:
                         st.error(
-                            f"❌ Face liveness verification failed ({score}%)."
+                            f"❌ Face liveness verification failed ({score}%). "
+                            "Check the anti-spoofing window/terminal output; "
+                            "the login is intentionally not granted."
                         )
                     elif verify_typing(email.strip(), typed_text):
                         st.success(
@@ -1791,10 +1827,13 @@ elif page == "Login":
                         st.error("❌ Behavioral typing verification failed.")
                 else:
                     st.error("❌ Face verification failed — access denied.")
-                    if result.stdout:
-                        st.code(result.stdout)
-                    if result.stderr:
-                        st.code(result.stderr)
+                    if result is not None:
+                        if result.stdout:
+                            st.text("Face recognition output:")
+                            st.code(result.stdout)
+                        if result.stderr:
+                            st.text("Face recognition errors:")
+                            st.code(result.stderr)
 
 # ---------------- SECURE WORKSPACE ---------------- #
 
@@ -1964,6 +2003,15 @@ elif page == "Secure Workspace":
 
 
 
+
+    # Show the final result after Streamlit reruns the page.
+    reauth_notice = st.session_state.pop("reauthentication_notice", None)
+    if reauth_notice:
+        notice_type, notice_text = reauth_notice
+        if notice_type == "success":
+            st.success(notice_text)
+        else:
+            st.error(notice_text)
 
     if not st.session_state.get("logged_in", False):
 
@@ -3928,7 +3976,15 @@ elif page == "Secure Workspace":
 
 
 
-                                live, score = check_liveness()
+                                # login.py has just used the same webcam.
+                                # Give Windows/OpenCV time to release it before
+                                # opening the liveness camera.
+                                time.sleep(1.5)
+                                try:
+                                    live, score = check_liveness()
+                                except Exception as exc:
+                                    live, score = False, 0
+                                    st.error(f"Face liveness check error: {exc}")
 
 
 
@@ -4105,14 +4161,14 @@ elif page == "Secure Workspace":
 
 
                                     st.session_state[
-
-
-
                                         "reauthentication_running"
-
-
-
                                     ] = False
+                                    st.session_state["reauthentication_notice"] = (
+                                        "success",
+                                        f"✅ Re-verification successful ({score}%). "
+                                        "Your session continues."
+                                    )
+                                    st.rerun()
 
 
 
@@ -4228,15 +4284,12 @@ elif page == "Secure Workspace":
 
 
 
-                                    st.error(
-
-
-
-                                        "🔒 SESSION LOCKED"
-
-
-
+                                    st.session_state["reauthentication_notice"] = (
+                                        "error",
+                                        "🔒 SESSION LOCKED — face liveness verification failed. "
+                                        "Please log in again."
                                     )
+                                    st.rerun()
 
 
 
@@ -4416,15 +4469,12 @@ elif page == "Secure Workspace":
 
 
 
-                                st.error(
-
-
-
-                                    "🔒 SESSION LOCKED"
-
-
-
+                                st.session_state["reauthentication_notice"] = (
+                                    "error",
+                                    "🔒 SESSION LOCKED — face identity re-verification failed. "
+                                    "Please log in again."
                                 )
+                                st.rerun()
 
 
 

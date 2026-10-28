@@ -1,32 +1,21 @@
-@"
-# Python
+
+# Python virtual environments
+.venv/
+.venv312/
+venv/
+
+# Python cache
 __pycache__/
 *.py[cod]
 
-# Virtual environments
-.venv/
-venv/
-env/
-
-# Secrets
+# Environment variables and secrets
 .env
 .env.*
 
-# Database
-database/*.db
+# Local databases and sensitive user data
+*.db
+*.sqlite
+*.sqlite3
 
-# User data
-storage/face_data/
-storage/typing_profiles/
-storage/authentication_logs/
-storage/images/
-
-# Images
-*.jpg
-*.jpeg
-*.png
-
-# OS files
-.DS_Store
-Thumbs.db
-"@ | Set-Content .gitignore
+# IDE files
+.vscode/
